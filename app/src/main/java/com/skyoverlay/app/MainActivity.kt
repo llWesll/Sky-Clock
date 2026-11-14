@@ -9,7 +9,9 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Button
+import android.view.WindowInsets
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
@@ -63,7 +65,38 @@ class MainActivity : Activity() {
             })
         })
 
-        setContentView(box)
+        box.addView(TextView(this).apply { text = "\nTamanho do relógio" })
+        box.addView(SeekBar(this).apply {
+            max = 24  // 8sp..32sp
+            progress = (prefs.getFloat("size", 13f).toInt() - 8).coerceIn(0, 24)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
+                    prefs.edit().putFloat("size", (p + 8).toFloat()).apply()
+                }
+                override fun onStartTrackingTouch(s: SeekBar?) {}
+                override fun onStopTrackingTouch(s: SeekBar?) {}
+            })
+        })
+
+        val scroll = ScrollView(this).apply { addView(box) }
+        // Android 15+ desenha o app por baixo da barra de status: empurra o conteudo para baixo dela
+        scroll.setOnApplyWindowInsetsListener { v, insets ->
+            val top: Int
+            val bottom: Int
+            if (Build.VERSION.SDK_INT >= 30) {
+                val i = insets.getInsets(WindowInsets.Type.systemBars())
+                top = i.top
+                bottom = i.bottom
+            } else {
+                @Suppress("DEPRECATION")
+                top = insets.systemWindowInsetTop
+                @Suppress("DEPRECATION")
+                bottom = insets.systemWindowInsetBottom
+            }
+            v.setPadding(0, top, 0, bottom)
+            insets
+        }
+        setContentView(scroll)
 
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED

@@ -147,11 +147,14 @@ class OverlayService : Service() {
 
     private fun update() {
         val b = box ?: return
-        b.alpha = getSharedPreferences("cfg", MODE_PRIVATE).getFloat("alpha", 0.7f)
+        val prefs = getSharedPreferences("cfg", MODE_PRIVATE)
+        b.alpha = prefs.getFloat("alpha", 0.7f)
+        val size = prefs.getFloat("size", 13f)
         val local = ZoneId.systemDefault()
         Events.list.forEachIndexed { i, e ->
             val st = Events.state(e)
             val t = rows[i]
+            t.textSize = size
             if (st.active) {
                 t.text = String.format("● %-9s AGORA  resta %s", e.name, clock(st.seconds))
                 t.setTextColor(Color.rgb(120, 255, 140))

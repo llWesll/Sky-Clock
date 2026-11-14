@@ -19,7 +19,6 @@ object Events {
     val list = listOf(
         SkyEvent("Geyser", 5, 10),
         SkyEvent("Vovó", 35, 10),
-        SkyEvent("Tartaruga", 50, 10),
     )
 
     /** active = acontecendo agora; seconds = tempo restante (se ativo) ou ate comecar. */
