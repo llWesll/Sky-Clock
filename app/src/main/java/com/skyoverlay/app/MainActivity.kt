@@ -143,7 +143,7 @@ class MainActivity : Activity() {
         preview = ClockCardView(this)
         preview.applyScale(prefs.getFloat("size", 13f) / 13f)
         preview.alpha = prefs.getFloat("alpha", 0.7f)
-        preview.setOptions(prefs.getBoolean("showEvents", true), prefs.getBoolean("showShards", true))
+        preview.setOptions(Options.events(prefs), Options.shards(prefs))
 
         val stage = FrameLayout(this)
         stage.background = GradientDrawable(
@@ -211,16 +211,16 @@ class MainActivity : Activity() {
         val show = card()
         show.addView(tv("O que mostrar", 16f, Palette.TEXT, fonts.poppinsMedium))
         show.addView(toggle("Horários dos eventos", "Geyser e Vovó (contagem e barra)",
-            prefs.getBoolean("showEvents", true)) { v ->
+            Options.events(prefs)) { v ->
             prefs.edit().putBoolean("showEvents", v).apply()
-            preview.setOptions(v, prefs.getBoolean("showShards", true))
+            preview.setOptions(v, Options.shards(prefs))
         })
         show.addView(toggle("Alerta de fragmento", "Imagem e local por 1 minuto",
-            prefs.getBoolean("showShards", true)) { v ->
+            Options.shards(prefs)) { v ->
             prefs.edit().putBoolean("showShards", v).apply()
-            preview.setOptions(prefs.getBoolean("showEvents", true), v)
+            preview.setOptions(Options.events(prefs), v)
         })
-        content.addView(show)
+        if (BuildConfig.HAS_EVENTS && BuildConfig.HAS_SHARDS) content.addView(show)   // chaves so na versao completa
 
         // ---- alerta de fragmento
         val shard = card()
@@ -237,7 +237,7 @@ class MainActivity : Activity() {
             preview.forcedAlert = Shards.Alert(ShardKind.BLACK, java.time.ZonedDateTime.now(Events.SKY_ZONE), "Deserto da Luz Estelar")
             preview.update()
         })
-        content.addView(shard)
+        if (BuildConfig.HAS_SHARDS) content.addView(shard)   // teste de fragmento so onde ha fragmento
 
         // ---- fundo em degrade + margens para a barra de status (Android 15+ desenha por baixo dela)
         val scroll = ScrollView(this)

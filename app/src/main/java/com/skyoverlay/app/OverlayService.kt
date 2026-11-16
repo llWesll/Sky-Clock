@@ -90,7 +90,7 @@ class OverlayService : Service() {
         val c = ClockCardView(this)
         c.applyScale(prefs.getFloat("size", 13f) / 13f)
         c.alpha = prefs.getFloat("alpha", 0.7f)
-        c.setOptions(prefs.getBoolean("showEvents", true), prefs.getBoolean("showShards", true))
+        c.setOptions(Options.events(prefs), Options.shards(prefs))
         c.showOngoingShardOnStart()   // se um fragmento ja estiver rolando ao iniciar, avisa por ate 1 minuto
 
         // arrastar a janela com o dedo
@@ -126,7 +126,7 @@ class OverlayService : Service() {
         val prefs = getSharedPreferences("cfg", MODE_PRIVATE)
         c.alpha = prefs.getFloat("alpha", 0.7f)
         c.applyScale(prefs.getFloat("size", 13f) / 13f)
-        c.setOptions(prefs.getBoolean("showEvents", true), prefs.getBoolean("showShards", true))
+        c.setOptions(Options.events(prefs), Options.shards(prefs))
         c.update()
     }
 

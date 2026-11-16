@@ -11,6 +11,12 @@ import android.widget.Button
 import android.widget.LinearLayout
 import java.util.Locale
 
+/** Opcoes de exibicao: a versao (sabor) do app limita o que pode ser ligado. */
+object Options {
+    fun events(p: android.content.SharedPreferences) = BuildConfig.HAS_EVENTS && p.getBoolean("showEvents", true)
+    fun shards(p: android.content.SharedPreferences) = BuildConfig.HAS_SHARDS && p.getBoolean("showShards", true)
+}
+
 object Palette {
     val BG_TOP = Color.parseColor("#0F1B33")
     val BG_BOTTOM = Color.parseColor("#1A2D52")
