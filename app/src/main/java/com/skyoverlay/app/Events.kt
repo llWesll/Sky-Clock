@@ -24,6 +24,9 @@ object Events {
     /** active = acontecendo agora; seconds = tempo restante (se ativo) ou ate comecar. */
     data class State(val active: Boolean, val seconds: Long, val start: ZonedDateTime)
 
+    /** O evento escolhido para aparecer no relogio, junto com o estado dele. */
+    data class Pick(val event: SkyEvent, val state: State)
+
     fun state(e: SkyEvent, now: ZonedDateTime = ZonedDateTime.now(SKY_ZONE)): State {
         val midnight = now.toLocalDate().atStartOfDay(SKY_ZONE)
         val secs = Duration.between(midnight, now).seconds
@@ -36,5 +39,11 @@ object Events {
         } else {
             State(false, startSecs + PERIOD_SEC - secs, midnight.plusSeconds(startSecs + PERIOD_SEC))
         }
+    }
+
+    /** Se algum evento esta acontecendo, mostra ele; senao, o que esta mais perto de comecar. */
+    fun pick(now: ZonedDateTime = ZonedDateTime.now(SKY_ZONE)): Pick {
+        val all = list.map { Pick(it, state(it, now)) }
+        return all.firstOrNull { it.state.active } ?: all.minByOrNull { it.state.seconds }!!
     }
 }

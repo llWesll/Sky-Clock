@@ -7,10 +7,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.graphics.Color
 import android.graphics.PixelFormat
-import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -19,10 +16,6 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import android.widget.LinearLayout
-import android.widget.TextView
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 class OverlayService : Service() {
 
@@ -33,10 +26,8 @@ class OverlayService : Service() {
 
     private lateinit var wm: WindowManager
     private lateinit var lp: WindowManager.LayoutParams
-    private var box: LinearLayout? = null
-    private val rows = ArrayList<TextView>()
+    private var card: ClockCardView? = null
     private val handler = Handler(Looper.getMainLooper())
-    private val fmt = DateTimeFormatter.ofPattern("HH:mm")
 
     private val tick = object : Runnable {
         override fun run() {
@@ -96,37 +87,27 @@ class OverlayService : Service() {
             y = prefs.getInt("y", 200)
         }
 
-        val bg = GradientDrawable().apply {
-            setColor(Color.parseColor("#E6000000"))
-            cornerRadius = 24f
-        }
-        val b = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = bg
-            setPadding(28, 18, 28, 18)
-        }
-        Events.list.forEach { _ ->
-            val t = TextView(this).apply {
-                setTextColor(Color.WHITE)
-                textSize = 13f
-                typeface = Typeface.MONOSPACE
-            }
-            b.addView(t)
-            rows.add(t)
-        }
+        val c = ClockCardView(this)
+        c.applyScale(prefs.getFloat("size", 13f) / 13f)
+        c.alpha = prefs.getFloat("alpha", 0.7f)
 
         // arrastar a janela com o dedo
-        var startX = 0; var startY = 0; var touchX = 0f; var touchY = 0f
-        b.setOnTouchListener { _: View, ev: MotionEvent ->
+        var startX = 0
+        var startY = 0
+        var touchX = 0f
+        var touchY = 0f
+        c.setOnTouchListener { _: View, ev: MotionEvent ->
             when (ev.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    startX = lp.x; startY = lp.y
-                    touchX = ev.rawX; touchY = ev.rawY
+                    startX = lp.x
+                    startY = lp.y
+                    touchX = ev.rawX
+                    touchY = ev.rawY
                 }
                 MotionEvent.ACTION_MOVE -> {
                     lp.x = startX + (ev.rawX - touchX).toInt()
                     lp.y = startY + (ev.rawY - touchY).toInt()
-                    wm.updateViewLayout(b, lp)
+                    wm.updateViewLayout(c, lp)
                 }
                 MotionEvent.ACTION_UP ->
                     prefs.edit().putInt("x", lp.x).putInt("y", lp.y).apply()
@@ -134,42 +115,22 @@ class OverlayService : Service() {
             true
         }
 
-        box = b
-        wm.addView(b, lp)
-    }
-
-    private fun clock(totalSec: Long): String {
-        val h = totalSec / 3600
-        val m = (totalSec % 3600) / 60
-        val s = totalSec % 60
-        return if (h > 0) String.format("%d:%02d:%02d", h, m, s) else String.format("%02d:%02d", m, s)
+        card = c
+        wm.addView(c, lp)
     }
 
     private fun update() {
-        val b = box ?: return
+        val c = card ?: return
         val prefs = getSharedPreferences("cfg", MODE_PRIVATE)
-        b.alpha = prefs.getFloat("alpha", 0.7f)
-        val size = prefs.getFloat("size", 13f)
-        val local = ZoneId.systemDefault()
-        Events.list.forEachIndexed { i, e ->
-            val st = Events.state(e)
-            val t = rows[i]
-            t.textSize = size
-            if (st.active) {
-                t.text = String.format("● %-9s AGORA  resta %s", e.name, clock(st.seconds))
-                t.setTextColor(Color.rgb(120, 255, 140))
-            } else {
-                val at = st.start.withZoneSameInstant(local).format(fmt)
-                t.text = String.format("  %-9s %s  em %s", e.name, at, clock(st.seconds))
-                t.setTextColor(Color.WHITE)
-            }
-        }
+        c.alpha = prefs.getFloat("alpha", 0.7f)
+        c.applyScale(prefs.getFloat("size", 13f) / 13f)
+        c.update()
     }
 
     override fun onDestroy() {
         handler.removeCallbacks(tick)
-        box?.let { wm.removeView(it) }
-        box = null
+        card?.let { wm.removeView(it) }
+        card = null
         super.onDestroy()
     }
 

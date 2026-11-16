@@ -4,12 +4,20 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
-import android.widget.Button
+import android.view.Gravity
+import android.view.ViewGroup
 import android.view.WindowInsets
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
@@ -18,68 +26,168 @@ import android.widget.Toast
 
 class MainActivity : Activity() {
 
-    private lateinit var info: TextView
+    private lateinit var fonts: Fonts
+    private lateinit var preview: ClockCardView
+    private lateinit var permChip: TextView
+    private val handler = Handler(Looper.getMainLooper())
+
+    private val tick = object : Runnable {
+        override fun run() {
+            preview.update()
+            handler.postDelayed(this, 1000)
+        }
+    }
+
+    private val wrap = ViewGroup.LayoutParams.WRAP_CONTENT
+    private val match = ViewGroup.LayoutParams.MATCH_PARENT
+
+    private fun tv(s: String, size: Float, color: Int, face: Typeface): TextView {
+        val t = TextView(this)
+        t.text = s
+        t.textSize = size
+        t.setTextColor(color)
+        t.typeface = face
+        return t
+    }
+
+    private fun card(): LinearLayout {
+        val c = LinearLayout(this)
+        c.orientation = LinearLayout.VERTICAL
+        c.background = rounded(Palette.CARD, 20f, Palette.LINE, 1f)
+        c.setPadding(dp(18f), dp(16f), dp(18f), dp(18f))
+        c.layoutParams = LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(14f) }
+        return c
+    }
+
+    private fun slider(
+        title: String, lo: Int, hi: Int, current: Int,
+        format: (Int) -> String, onChange: (Int) -> Unit
+    ): LinearLayout {
+        val box = LinearLayout(this)
+        box.orientation = LinearLayout.VERTICAL
+        box.layoutParams = LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(12f) }
+
+        val head = LinearLayout(this)
+        head.orientation = LinearLayout.HORIZONTAL
+        val t = tv(title, 14f, Palette.TEXT, fonts.poppins)
+        t.layoutParams = LinearLayout.LayoutParams(0, wrap, 1f)
+        val value = tv(format(current), 14f, Palette.CYAN, fonts.poppinsMedium)
+        head.addView(t)
+        head.addView(value)
+
+        val sb = SeekBar(this)
+        sb.max = hi - lo
+        sb.progress = current - lo
+        sb.progressTintList = ColorStateList.valueOf(Palette.CYAN)
+        sb.thumbTintList = ColorStateList.valueOf(Palette.CYAN)
+        sb.progressBackgroundTintList = ColorStateList.valueOf(Palette.LINE)
+        sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
+                val v = p + lo
+                value.text = format(v)
+                onChange(v)
+            }
+
+            override fun onStartTrackingTouch(s: SeekBar?) {}
+            override fun onStopTrackingTouch(s: SeekBar?) {}
+        })
+
+        box.addView(head)
+        box.addView(sb)
+        return box
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        fonts = Fonts(this)
         val prefs = getSharedPreferences("cfg", MODE_PRIVATE)
 
-        val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 48, 48, 48)
-        }
-        info = TextView(this).apply { textSize = 16f }
-        box.addView(info)
+        val content = LinearLayout(this)
+        content.orientation = LinearLayout.VERTICAL
+        content.setPadding(dp(20f), dp(24f), dp(20f), dp(32f))
 
-        fun button(text: String, action: () -> Unit) {
-            box.addView(Button(this).apply {
-                this.text = text
-                setOnClickListener { action() }
-            })
-        }
+        // ---- cabecalho
+        content.addView(tv("Sky Overlay", 28f, Palette.TEXT, fonts.poppinsMedium))
+        content.addView(tv("Relógio dos eventos de cera", 14f, Palette.DIM, fonts.poppins))
 
-        button("1. Permitir exibir sobre outros apps") {
+        // ---- previa ao vivo, sobre um fundo de "ceu" para a transparencia aparecer
+        content.addView(tv("PRÉVIA", 11f, Palette.DIM, fonts.poppinsMedium).apply {
+            letterSpacing = 0.14f
+            layoutParams = LinearLayout.LayoutParams(wrap, wrap).apply { topMargin = dp(22f) }
+        })
+
+        preview = ClockCardView(this)
+        preview.applyScale(prefs.getFloat("size", 13f) / 13f)
+        preview.alpha = prefs.getFloat("alpha", 0.7f)
+
+        val stage = FrameLayout(this)
+        stage.background = GradientDrawable(
+            GradientDrawable.Orientation.TL_BR,
+            intArrayOf(Color.parseColor("#2F5D8C"), Color.parseColor("#7A5C9E"), Color.parseColor("#E39A8B"))
+        ).apply { cornerRadius = dp(20f).toFloat() }
+        stage.setPadding(dp(20f), dp(28f), dp(20f), dp(28f))
+        stage.layoutParams = LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(8f) }
+        stage.addView(preview, FrameLayout.LayoutParams(wrap, wrap, Gravity.CENTER_HORIZONTAL))
+        content.addView(stage)
+
+        // ---- permissao
+        val perm = card()
+        val permRow = LinearLayout(this)
+        permRow.orientation = LinearLayout.HORIZONTAL
+        permRow.gravity = Gravity.CENTER_VERTICAL
+        val permTitle = tv("Sobreposição", 16f, Palette.TEXT, fonts.poppinsMedium)
+        permTitle.layoutParams = LinearLayout.LayoutParams(0, wrap, 1f)
+        permChip = tv("", 12f, Palette.TEXT, fonts.poppinsMedium)
+        permChip.setPadding(dp(12f), dp(4f), dp(12f), dp(4f))
+        permRow.addView(permTitle)
+        permRow.addView(permChip)
+        perm.addView(permRow)
+        perm.addView(tv("Necessária para o relógio aparecer por cima do jogo.", 13f, Palette.DIM, fonts.poppins))
+        perm.addView(pillButton("Permitir exibir sobre outros apps", fonts, false) {
             startActivity(
                 Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
             )
-        }
-        button("2. Mostrar relógio") {
+        })
+        content.addView(perm)
+
+        // ---- ligar / desligar
+        val power = card()
+        power.addView(pillButton("Mostrar relógio", fonts, true) {
             if (!Settings.canDrawOverlays(this)) {
-                Toast.makeText(this, "Falta a permissão do passo 1", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Falta a permissão de sobreposição", Toast.LENGTH_LONG).show()
             } else {
                 startForegroundService(Intent(this, OverlayService::class.java))
             }
-        }
-        button("Esconder relógio") { stopService(Intent(this, OverlayService::class.java)) }
-
-        box.addView(TextView(this).apply { text = "\nTransparência (do mais transparente ao opaco)" })
-        box.addView(SeekBar(this).apply {
-            max = 80  // 20%..100%
-            progress = ((prefs.getFloat("alpha", 0.7f) * 100).toInt() - 20).coerceIn(0, 80)
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
-                    prefs.edit().putFloat("alpha", (p + 20) / 100f).apply()
-                }
-                override fun onStartTrackingTouch(s: SeekBar?) {}
-                override fun onStopTrackingTouch(s: SeekBar?) {}
-            })
         })
-
-        box.addView(TextView(this).apply { text = "\nTamanho do relógio" })
-        box.addView(SeekBar(this).apply {
-            max = 24  // 8sp..32sp
-            progress = (prefs.getFloat("size", 13f).toInt() - 8).coerceIn(0, 24)
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
-                    prefs.edit().putFloat("size", (p + 8).toFloat()).apply()
-                }
-                override fun onStartTrackingTouch(s: SeekBar?) {}
-                override fun onStopTrackingTouch(s: SeekBar?) {}
-            })
+        power.addView(pillButton("Esconder relógio", fonts, false) {
+            stopService(Intent(this, OverlayService::class.java))
         })
+        content.addView(power)
 
-        val scroll = ScrollView(this).apply { addView(box) }
-        // Android 15+ desenha o app por baixo da barra de status: empurra o conteudo para baixo dela
+        // ---- aparencia
+        val look = card()
+        look.addView(tv("Aparência", 16f, Palette.TEXT, fonts.poppinsMedium))
+        look.addView(slider("Opacidade", 20, 100, (prefs.getFloat("alpha", 0.7f) * 100).toInt().coerceIn(20, 100),
+            { "$it%" }) { v ->
+            prefs.edit().putFloat("alpha", v / 100f).apply()
+            preview.alpha = v / 100f
+        })
+        look.addView(slider("Tamanho", 8, 32, prefs.getFloat("size", 13f).toInt().coerceIn(8, 32),
+            { "$it" }) { v ->
+            prefs.edit().putFloat("size", v.toFloat()).apply()
+            preview.applyScale(v / 13f)
+        })
+        look.addView(tv("Arraste o relógio na tela para mudar de posição.", 13f, Palette.DIM, fonts.poppins).apply {
+            layoutParams = LinearLayout.LayoutParams(wrap, wrap).apply { topMargin = dp(14f) }
+        })
+        content.addView(look)
+
+        // ---- fundo em degrade + margens para a barra de status (Android 15+ desenha por baixo dela)
+        val scroll = ScrollView(this)
+        scroll.background = GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(Palette.BG_TOP, Palette.BG_BOTTOM)
+        )
+        scroll.addView(content)
         scroll.setOnApplyWindowInsetsListener { v, insets ->
             val top: Int
             val bottom: Int
@@ -107,8 +215,15 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        info.text = "Sobreposição: " +
-            (if (Settings.canDrawOverlays(this)) "permitida" else "falta permitir") +
-            "\nArraste o relógio na tela para mudar de posição."
+        val ok = Settings.canDrawOverlays(this)
+        permChip.text = if (ok) "Permitida" else "Falta permitir"
+        permChip.setTextColor(if (ok) Palette.OK else Palette.WARN)
+        permChip.background = rounded(Color.parseColor("#1AFFFFFF"), 20f, if (ok) Palette.OK else Palette.WARN, 1f)
+        handler.post(tick)
+    }
+
+    override fun onPause() {
+        handler.removeCallbacks(tick)
+        super.onPause()
     }
 }
