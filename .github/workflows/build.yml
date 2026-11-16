@@ -14,9 +14,22 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.10.2
-      - name: Compilar o APK
-        run: gradle assembleDebug --no-daemon
-      - uses: actions/upload-artifact@v4
+      # Compila as 3 versoes de uma vez: completo, eventos e fragmento
+      - name: Compilar os APKs
+        run: gradle assembleCompletoDebug assembleEventosDebug assembleFragmentoDebug --no-daemon
+
+      - name: APK completo (eventos + fragmento)
+        uses: actions/upload-artifact@v4
         with:
-          name: sky-overlay-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: sky-overlay-completo
+          path: app/build/outputs/apk/completo/debug/*.apk
+      - name: APK so eventos (Geyser e Vovó)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-overlay-so-eventos
+          path: app/build/outputs/apk/eventos/debug/*.apk
+      - name: APK so fragmento
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-overlay-so-fragmento
+          path: app/build/outputs/apk/fragmento/debug/*.apk
