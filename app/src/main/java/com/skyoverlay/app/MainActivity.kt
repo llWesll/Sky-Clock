@@ -182,6 +182,23 @@ class MainActivity : Activity() {
         })
         content.addView(look)
 
+        // ---- alerta de fragmento
+        val shard = card()
+        shard.addView(tv("Alerta de fragmento", 16f, Palette.TEXT, fonts.poppinsMedium))
+        shard.addView(tv(
+            "Nos dias com fragmento, uma faixa na cor dele aparece no relógio quando ele começa e some quando pousa.",
+            13f, Palette.DIM, fonts.poppins
+        ).apply { layoutParams = LinearLayout.LayoutParams(wrap, wrap).apply { topMargin = dp(6f) } })
+        shard.addView(pillButton("Testar fragmento vermelho", fonts, false) {
+            preview.forcedAlert = Shards.Alert(ShardKind.RED, java.time.ZonedDateTime.now(Events.SKY_ZONE), "Campina", "Ninho do Pássaro")
+            preview.update()
+        })
+        shard.addView(pillButton("Testar fragmento preto", fonts, false) {
+            preview.forcedAlert = Shards.Alert(ShardKind.BLACK, java.time.ZonedDateTime.now(Events.SKY_ZONE), "Relicário", "Deserto da Luz Estelar")
+            preview.update()
+        })
+        content.addView(shard)
+
         // ---- fundo em degrade + margens para a barra de status (Android 15+ desenha por baixo dela)
         val scroll = ScrollView(this)
         scroll.background = GradientDrawable(

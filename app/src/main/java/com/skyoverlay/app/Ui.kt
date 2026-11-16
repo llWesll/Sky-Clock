@@ -22,6 +22,8 @@ object Palette {
     val DIM = Color.parseColor("#A9B7D0")
     val OK = Color.parseColor("#7BE0A4")
     val WARN = Color.parseColor("#FFB066")
+    val SHARD_RED = Color.parseColor("#E5484D")     // alerta de fragmento vermelho
+    val SHARD_BLACK = Color.parseColor("#0B0B10")   // alerta de fragmento preto
 }
 
 class Fonts(ctx: Context) {

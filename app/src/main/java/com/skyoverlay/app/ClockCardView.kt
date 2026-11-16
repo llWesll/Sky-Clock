@@ -11,6 +11,7 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 /** Barrinha fina de progresso. */
@@ -50,7 +51,12 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
     private val time = TextView(ctx)
     private val bar = BarView(ctx)
     private val sub = TextView(ctx)
+    private val alertTv = TextView(ctx)
+    private var alertKind: ShardKind? = null
     private var scale = -1f
+
+    /** Usado so na previa do app para testar o alerta; some sozinho quando o tempo acaba. */
+    var forcedAlert: Shards.Alert? = null
     private val fmt = DateTimeFormatter.ofPattern("HH:mm")
 
     private fun d(v: Float) = context.dp(v)
@@ -77,7 +83,13 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
         time.includeFontPadding = false
         sub.typeface = fonts.poppins
         sub.setTextColor(Palette.DIM)
+        alertTv.typeface = fonts.poppinsMedium
+        alertTv.setTextColor(Color.WHITE)
+        alertTv.gravity = Gravity.CENTER
+        alertTv.letterSpacing = 0.06f
+        alertTv.visibility = View.GONE
 
+        addView(alertTv)
         addView(row)
         addView(time)
         addView(bar)
@@ -105,6 +117,11 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
         val wrap = ViewGroup.LayoutParams.WRAP_CONTENT
         val match = ViewGroup.LayoutParams.MATCH_PARENT
 
+        alertTv.textSize = 12f * s
+        alertTv.setPadding(d(10f * s), d(6f * s), d(10f * s), d(6f * s))
+        alertTv.layoutParams = LinearLayout.LayoutParams(match, wrap).apply { bottomMargin = d(10f * s) }
+        alertKind = null   // refaz o fundo do alerta com o novo tamanho no proximo update()
+
         dot.layoutParams = LinearLayout.LayoutParams(d(8f * s), d(8f * s)).apply { marginEnd = d(8f * s) }
         label.textSize = 10f * s
         name.textSize = 15f * s
@@ -116,7 +133,33 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
         sub.layoutParams = LinearLayout.LayoutParams(wrap, wrap).apply { topMargin = d(8f * s) }
     }
 
+    /** Faixa na cor do fragmento (vermelho ou preto) enquanto ele esta caindo. */
+    private fun updateAlert() {
+        val now = ZonedDateTime.now(Events.SKY_ZONE)
+        val forced = forcedAlert
+        if (forced != null && forced.secondsToLand(now) <= 0) forcedAlert = null
+        val a = forcedAlert ?: Shards.alert(now)
+
+        if (a == null) {
+            alertTv.visibility = View.GONE
+            alertKind = null
+            return
+        }
+        if (alertKind != a.kind) {
+            alertKind = a.kind
+            alertTv.background = when (a.kind) {
+                ShardKind.RED -> context.rounded(Palette.SHARD_RED, 12f * scale, Color.parseColor("#66FFFFFF"), 1f)
+                // preto puro some no fundo escuro: borda clara para continuar visivel
+                ShardKind.BLACK -> context.rounded(Palette.SHARD_BLACK, 12f * scale, Color.parseColor("#B3FFFFFF"), 1f)
+            }
+        }
+        val where = if (a.place.isNotEmpty()) "\n${a.realm} · ${a.place}" else ""
+        alertTv.text = "FRAGMENTO ${a.kind.label.uppercase()}$where\nPousa em ${clock(a.secondsToLand(now))}"
+        alertTv.visibility = View.VISIBLE
+    }
+
     fun update() {
+        updateAlert()
         val p = Events.pick()
         val st = p.state
         val accent = if (st.active) Palette.GOLD else Palette.CYAN
