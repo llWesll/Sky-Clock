@@ -63,7 +63,7 @@ object Shards {
     }
 
     /** Fragmento que comecou e ainda nao pousou. */
-    data class Alert(val kind: ShardKind, val start: ZonedDateTime, val realm: String = "", val place: String = "") {
+    data class Alert(val kind: ShardKind, val start: ZonedDateTime, val place: String = "") {
         fun secondsToLand(now: ZonedDateTime = ZonedDateTime.now(Events.SKY_ZONE)): Long =
             LAND_SEC - Duration.between(start, now).seconds
     }
@@ -76,6 +76,6 @@ object Shards {
         val start = starts(date).firstOrNull {
             !now.isBefore(it) && now.isBefore(it.plusSeconds(LAND_SEC))
         } ?: return null
-        return Alert(day.kind, start, REALMS[realmIdx], day.places[realmIdx])
+        return Alert(day.kind, start, day.places[realmIdx])
     }
 }

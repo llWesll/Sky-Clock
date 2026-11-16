@@ -45,6 +45,8 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
 
     private val fonts = Fonts(ctx)
     private val row = LinearLayout(ctx)
+    private val body = LinearLayout(ctx)   // horizontal: tempo grande | nome e horario
+    private val info = LinearLayout(ctx)   // vertical: linha do evento + "comeca as"
     private val dot = View(ctx)
     private val label = TextView(ctx)
     private val name = TextView(ctx)
@@ -89,11 +91,20 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
         alertTv.letterSpacing = 0.06f
         alertTv.visibility = View.GONE
 
+        info.orientation = LinearLayout.VERTICAL
+        info.gravity = Gravity.CENTER_VERTICAL
+        info.addView(row)
+        info.addView(sub)
+
+        body.orientation = LinearLayout.HORIZONTAL
+        body.gravity = Gravity.CENTER_VERTICAL
+        body.addView(time)
+        body.addView(info)
+
+        // retangular: faixa de alerta em cima, tempo + info lado a lado, barra embaixo
         addView(alertTv)
-        addView(row)
-        addView(time)
+        addView(body)
         addView(bar)
-        addView(sub)
 
         applyScale(1f)
         update()
@@ -112,7 +123,7 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
             setStroke(d(1f), Color.parseColor("#33FFFFFF"))
         }
         setPadding(d(16f * s), d(12f * s), d(16f * s), d(14f * s))
-        minimumWidth = d(190f * s)
+        minimumWidth = d(250f * s)
 
         val wrap = ViewGroup.LayoutParams.WRAP_CONTENT
         val match = ViewGroup.LayoutParams.MATCH_PARENT
@@ -126,11 +137,14 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
         label.textSize = 10f * s
         name.textSize = 15f * s
         name.layoutParams = LinearLayout.LayoutParams(wrap, wrap).apply { marginStart = d(8f * s) }
-        time.textSize = 38f * s
-        time.layoutParams = LinearLayout.LayoutParams(wrap, wrap).apply { topMargin = d(4f * s) }
-        bar.layoutParams = LinearLayout.LayoutParams(match, d(4f * s)).apply { topMargin = d(8f * s) }
+        time.textSize = 34f * s
+        time.minWidth = d(126f * s)            // cabe "0:00:00": a largura do card nao pula
+        time.layoutParams = LinearLayout.LayoutParams(wrap, wrap)
+        info.layoutParams = LinearLayout.LayoutParams(wrap, wrap).apply { marginStart = d(14f * s) }
+        body.layoutParams = LinearLayout.LayoutParams(match, wrap)
+        bar.layoutParams = LinearLayout.LayoutParams(match, d(4f * s)).apply { topMargin = d(10f * s) }
         sub.textSize = 11f * s
-        sub.layoutParams = LinearLayout.LayoutParams(wrap, wrap).apply { topMargin = d(8f * s) }
+        sub.layoutParams = LinearLayout.LayoutParams(wrap, wrap).apply { topMargin = d(2f * s) }
     }
 
     /** Faixa na cor do fragmento (vermelho ou preto) enquanto ele esta caindo. */
@@ -153,8 +167,8 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
                 ShardKind.BLACK -> context.rounded(Palette.SHARD_BLACK, 12f * scale, Color.parseColor("#B3FFFFFF"), 1f)
             }
         }
-        val where = if (a.place.isNotEmpty()) "\n${a.realm} · ${a.place}" else ""
-        alertTv.text = "FRAGMENTO ${a.kind.label.uppercase()}$where\nPousa em ${clock(a.secondsToLand(now))}"
+        val where = if (a.place.isNotEmpty()) "\n${a.place}" else ""
+        alertTv.text = "FRAGMENTO ${a.kind.label.uppercase()} · pousa em ${clock(a.secondsToLand(now))}$where"
         alertTv.visibility = View.VISIBLE
     }
 

@@ -190,11 +190,11 @@ class MainActivity : Activity() {
             13f, Palette.DIM, fonts.poppins
         ).apply { layoutParams = LinearLayout.LayoutParams(wrap, wrap).apply { topMargin = dp(6f) } })
         shard.addView(pillButton("Testar fragmento vermelho", fonts, false) {
-            preview.forcedAlert = Shards.Alert(ShardKind.RED, java.time.ZonedDateTime.now(Events.SKY_ZONE), "Campina", "Ninho do Pássaro")
+            preview.forcedAlert = Shards.Alert(ShardKind.RED, java.time.ZonedDateTime.now(Events.SKY_ZONE), "Ninho do Pássaro")
             preview.update()
         })
         shard.addView(pillButton("Testar fragmento preto", fonts, false) {
-            preview.forcedAlert = Shards.Alert(ShardKind.BLACK, java.time.ZonedDateTime.now(Events.SKY_ZONE), "Relicário", "Deserto da Luz Estelar")
+            preview.forcedAlert = Shards.Alert(ShardKind.BLACK, java.time.ZonedDateTime.now(Events.SKY_ZONE), "Deserto da Luz Estelar")
             preview.update()
         })
         content.addView(shard)
