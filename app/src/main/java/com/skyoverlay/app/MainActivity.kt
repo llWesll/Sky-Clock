@@ -186,7 +186,7 @@ class MainActivity : Activity() {
         val shard = card()
         shard.addView(tv("Alerta de fragmento", 16f, Palette.TEXT, fonts.poppinsMedium))
         shard.addView(tv(
-            "Nos dias com fragmento, uma faixa na cor dele aparece no relógio quando ele começa e some quando pousa.",
+            "Nos dias com fragmento, a imagem dele (preto ou vermelho) e o nome do local aparecem no relógio por 1 minuto quando ele começa.",
             13f, Palette.DIM, fonts.poppins
         ).apply { layoutParams = LinearLayout.LayoutParams(wrap, wrap).apply { topMargin = dp(6f) } })
         shard.addView(pillButton("Testar fragmento vermelho", fonts, false) {

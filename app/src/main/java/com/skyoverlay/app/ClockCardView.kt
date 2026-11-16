@@ -7,7 +7,9 @@ import android.graphics.Paint
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
+import android.util.TypedValue
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import java.time.ZoneId
@@ -53,6 +55,8 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
     private val time = TextView(ctx)
     private val bar = BarView(ctx)
     private val sub = TextView(ctx)
+    private val alertBox = LinearLayout(ctx)   // faixa do alerta: imagem do fragmento + nome do local
+    private val alertImg = ImageView(ctx)
     private val alertTv = TextView(ctx)
     private var alertKind: ShardKind? = null
     private var scale = -1f
@@ -62,6 +66,10 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
     private val fmt = DateTimeFormatter.ofPattern("HH:mm")
 
     private fun d(v: Float) = context.dp(v)
+
+    /** Tamanho de texto em dp (sem depender da escala de fonte do sistema), para acompanhar o resto do card. */
+    private fun TextView.size(dpValue: Float) =
+        setTextSize(TypedValue.COMPLEX_UNIT_PX, dpValue * context.resources.displayMetrics.density)
 
     init {
         orientation = LinearLayout.VERTICAL
@@ -87,9 +95,17 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
         sub.setTextColor(Palette.DIM)
         alertTv.typeface = fonts.poppinsMedium
         alertTv.setTextColor(Color.WHITE)
-        alertTv.gravity = Gravity.CENTER
-        alertTv.letterSpacing = 0.06f
-        alertTv.visibility = View.GONE
+        alertTv.gravity = Gravity.START or Gravity.CENTER_VERTICAL
+        alertTv.maxLines = 2
+        alertImg.scaleType = ImageView.ScaleType.FIT_CENTER
+        alertBox.orientation = LinearLayout.HORIZONTAL
+        alertBox.gravity = Gravity.CENTER_VERTICAL
+        alertBox.visibility = View.GONE
+        alertBox.addView(alertImg)
+        alertBox.addView(alertTv)
+
+        // uma linha so: sem quebra, nada fica cortado nem empurra o card
+        listOf(label, name, time, sub).forEach { it.isSingleLine = true }
 
         info.orientation = LinearLayout.VERTICAL
         info.gravity = Gravity.CENTER_VERTICAL
@@ -102,7 +118,7 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
         body.addView(info)
 
         // retangular: faixa de alerta em cima, tempo + info lado a lado, barra embaixo
-        addView(alertTv)
+        addView(alertBox)
         addView(body)
         addView(bar)
 
@@ -128,48 +144,55 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
         val wrap = ViewGroup.LayoutParams.WRAP_CONTENT
         val match = ViewGroup.LayoutParams.MATCH_PARENT
 
-        alertTv.textSize = 12f * s
-        alertTv.setPadding(d(10f * s), d(6f * s), d(10f * s), d(6f * s))
-        alertTv.layoutParams = LinearLayout.LayoutParams(match, wrap).apply { bottomMargin = d(10f * s) }
+        alertBox.setPadding(d(10f * s), d(6f * s), d(10f * s), d(6f * s))
+        alertBox.layoutParams = LinearLayout.LayoutParams(match, wrap).apply { bottomMargin = d(10f * s) }
+        alertImg.layoutParams = LinearLayout.LayoutParams(d(32f * s), d(32f * s)).apply { marginEnd = d(10f * s) }
+        alertTv.size(13f * s)
+        alertTv.layoutParams = LinearLayout.LayoutParams(0, wrap, 1f)   // largura 0 + peso: nunca alarga o card
         alertKind = null   // refaz o fundo do alerta com o novo tamanho no proximo update()
 
         dot.layoutParams = LinearLayout.LayoutParams(d(8f * s), d(8f * s)).apply { marginEnd = d(8f * s) }
-        label.textSize = 10f * s
-        name.textSize = 15f * s
+        label.size(10f * s)
+        name.size(15f * s)
         name.layoutParams = LinearLayout.LayoutParams(wrap, wrap).apply { marginStart = d(8f * s) }
-        time.textSize = 34f * s
-        time.minWidth = d(126f * s)            // cabe "0:00:00": a largura do card nao pula
+        time.size(34f * s)
+        time.minWidth = Math.ceil(time.paint.measureText("0:00:00").toDouble()).toInt()   // largura real do texto: nao corta e o card nao pula
         time.layoutParams = LinearLayout.LayoutParams(wrap, wrap)
         info.layoutParams = LinearLayout.LayoutParams(wrap, wrap).apply { marginStart = d(14f * s) }
         body.layoutParams = LinearLayout.LayoutParams(match, wrap)
         bar.layoutParams = LinearLayout.LayoutParams(match, d(4f * s)).apply { topMargin = d(10f * s) }
-        sub.textSize = 11f * s
+        sub.size(11f * s)
         sub.layoutParams = LinearLayout.LayoutParams(wrap, wrap).apply { topMargin = d(2f * s) }
     }
 
-    /** Faixa na cor do fragmento (vermelho ou preto) enquanto ele esta caindo. */
+    /** Faixa com a imagem do fragmento (preto ou vermelho) + nome do local, por no maximo 1 minuto. */
     private fun updateAlert() {
         val now = ZonedDateTime.now(Events.SKY_ZONE)
         val forced = forcedAlert
-        if (forced != null && forced.secondsToLand(now) <= 0) forcedAlert = null
+        if (forced != null && forced.elapsedSec(now) >= Shards.ALERT_SEC) forcedAlert = null
         val a = forcedAlert ?: Shards.alert(now)
 
         if (a == null) {
-            alertTv.visibility = View.GONE
+            alertBox.visibility = View.GONE
             alertKind = null
             return
         }
         if (alertKind != a.kind) {
             alertKind = a.kind
-            alertTv.background = when (a.kind) {
-                ShardKind.RED -> context.rounded(Palette.SHARD_RED, 12f * scale, Color.parseColor("#66FFFFFF"), 1f)
-                // preto puro some no fundo escuro: borda clara para continuar visivel
-                ShardKind.BLACK -> context.rounded(Palette.SHARD_BLACK, 12f * scale, Color.parseColor("#B3FFFFFF"), 1f)
+            when (a.kind) {
+                ShardKind.RED -> {
+                    alertImg.setImageResource(R.drawable.shard_red)
+                    alertBox.background = context.rounded(Palette.SHARD_RED, 12f * scale, Color.parseColor("#66FFFFFF"), 1f)
+                }
+                ShardKind.BLACK -> {
+                    alertImg.setImageResource(R.drawable.shard_black)
+                    // preto puro some no fundo escuro: borda clara para continuar visivel
+                    alertBox.background = context.rounded(Palette.SHARD_BLACK, 12f * scale, Color.parseColor("#B3FFFFFF"), 1f)
+                }
             }
         }
-        val where = if (a.place.isNotEmpty()) "\n${a.place}" else ""
-        alertTv.text = "FRAGMENTO ${a.kind.label.uppercase()} · pousa em ${clock(a.secondsToLand(now))}$where"
-        alertTv.visibility = View.VISIBLE
+        alertTv.text = a.place.ifEmpty { a.kind.label }
+        alertBox.visibility = View.VISIBLE
     }
 
     fun update() {
