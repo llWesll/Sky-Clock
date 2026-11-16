@@ -32,6 +32,12 @@ class BarView(ctx: Context) : View(ctx) {
     private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#26FFFFFF") }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
 
+    /** Sem largura propria: quem define a largura e o card (senao a barra ocupa a tela toda e estica tudo). */
+    override fun onMeasure(widthSpec: Int, heightSpec: Int) {
+        val w = if (MeasureSpec.getMode(widthSpec) == MeasureSpec.EXACTLY) MeasureSpec.getSize(widthSpec) else 0
+        setMeasuredDimension(w, getDefaultSize(suggestedMinimumHeight, heightSpec))
+    }
+
     override fun onDraw(c: Canvas) {
         val r = height / 2f
         c.drawRoundRect(0f, 0f, width.toFloat(), height.toFloat(), r, r, track)
@@ -148,9 +154,11 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
         alertBox.layoutParams = LinearLayout.LayoutParams(match, wrap).apply { bottomMargin = d(10f * s) }
         alertImg.layoutParams = LinearLayout.LayoutParams(d(32f * s), d(32f * s)).apply { marginEnd = d(10f * s) }
         alertTv.size(13f * s)
-        alertTv.layoutParams = LinearLayout.LayoutParams(0, wrap, 1f)   // largura 0 + peso: nunca alarga o card
+        alertTv.maxWidth = d(150f * s)   // nomes maiores quebram em 2 linhas em vez de alargar o card
+        alertTv.layoutParams = LinearLayout.LayoutParams(wrap, wrap)
         alertKind = null   // refaz o fundo do alerta com o novo tamanho no proximo update()
 
+        row.layoutParams = LinearLayout.LayoutParams(wrap, wrap)
         dot.layoutParams = LinearLayout.LayoutParams(d(8f * s), d(8f * s)).apply { marginEnd = d(8f * s) }
         label.size(10f * s)
         name.size(15f * s)
