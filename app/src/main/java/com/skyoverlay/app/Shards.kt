@@ -74,6 +74,17 @@ object Shards {
             Duration.between(start, now).seconds
     }
 
+    /** Fragmento que esta rolando agora (comecou e ainda nao pousou, ate 8min40s), ou null. */
+    fun ongoing(now: ZonedDateTime = ZonedDateTime.now(Events.SKY_ZONE)): Alert? {
+        val date = now.withZoneSameInstant(Events.SKY_ZONE).toLocalDate()
+        val day = forDate(date) ?: return null
+        val realmIdx = (date.dayOfMonth - 1) % REALMS.size
+        val start = starts(date).firstOrNull {
+            !now.isBefore(it) && now.isBefore(it.plusSeconds(LAND_SEC))
+        } ?: return null
+        return Alert(day.kind, start, day.places[realmIdx])
+    }
+
     /** Alerta ativo agora (so no 1o minuto depois que o fragmento aparece), ou null. */
     fun alert(now: ZonedDateTime = ZonedDateTime.now(Events.SKY_ZONE)): Alert? {
         val date = now.withZoneSameInstant(Events.SKY_ZONE).toLocalDate()

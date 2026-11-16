@@ -69,6 +69,29 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
 
     /** Usado so na previa do app para testar o alerta; some sozinho quando o tempo acaba. */
     var forcedAlert: Shards.Alert? = null
+
+    /** Alerta mostrado ao iniciar a sobreposicao, se um fragmento ja estiver rolando nesse momento. */
+    private var startupAlert: Shards.Alert? = null
+    private var startupUntil: ZonedDateTime? = null
+
+    /** Chamado uma vez quando o overlay inicia: mostra o aviso por ate 1 minuto, sem passar do pouso. */
+    fun showOngoingShardOnStart() {
+        val now = ZonedDateTime.now(Events.SKY_ZONE)
+        val a = Shards.ongoing(now) ?: return
+        startupAlert = a
+        startupUntil = now.plusSeconds(minOf(Shards.ALERT_SEC, a.secondsToLand(now)))
+    }
+
+    /** Opcoes de exibicao (podem ficar ligadas juntas ou separadas). */
+    private var showEvents = true
+    private var showShards = true
+
+    fun setOptions(events: Boolean, shards: Boolean) {
+        if (events == showEvents && shards == showShards) return
+        showEvents = events
+        showShards = shards
+        update()
+    }
     private val fmt = DateTimeFormatter.ofPattern("HH:mm")
 
     private fun d(v: Float) = context.dp(v)
@@ -174,16 +197,19 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
     }
 
     /** Faixa com a imagem do fragmento (preto ou vermelho) + nome do local, por no maximo 1 minuto. */
-    private fun updateAlert() {
+    private fun updateAlert(): Boolean {
         val now = ZonedDateTime.now(Events.SKY_ZONE)
         val forced = forcedAlert
         if (forced != null && forced.elapsedSec(now) >= Shards.ALERT_SEC) forcedAlert = null
-        val a = forcedAlert ?: Shards.alert(now)
+        // o teste da previa aparece mesmo com o alerta desligado
+        val until = startupUntil
+        if (startupAlert != null && (until == null || !now.isBefore(until))) startupAlert = null
+        val a = forcedAlert ?: if (showShards) (startupAlert ?: Shards.alert(now)) else null
 
         if (a == null) {
             alertBox.visibility = View.GONE
             alertKind = null
-            return
+            return false
         }
         if (alertKind != a.kind) {
             alertKind = a.kind
@@ -201,10 +227,17 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
         }
         alertTv.text = a.place.ifEmpty { a.kind.label }
         alertBox.visibility = View.VISIBLE
+        // sem a area de eventos embaixo, nao precisa de espaco depois da faixa
+        (alertBox.layoutParams as? LinearLayout.LayoutParams)?.bottomMargin = if (showEvents) d(10f * scale) else 0
+        return true
     }
 
     fun update() {
-        updateAlert()
+        val alertShown = updateAlert()
+        body.visibility = if (showEvents) View.VISIBLE else View.GONE
+        bar.visibility = if (showEvents) View.VISIBLE else View.GONE
+        // nada para mostrar: o card some e a janela encolhe (nao bloqueia toques no jogo)
+        visibility = if (showEvents || alertShown) View.VISIBLE else View.GONE
         val p = Events.pick()
         val st = p.state
         val accent = if (st.active) Palette.GOLD else Palette.CYAN

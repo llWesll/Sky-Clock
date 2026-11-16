@@ -20,6 +20,7 @@ import android.view.WindowInsets
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Switch
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
@@ -57,6 +58,29 @@ class MainActivity : Activity() {
         c.setPadding(dp(18f), dp(16f), dp(18f), dp(18f))
         c.layoutParams = LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(14f) }
         return c
+    }
+
+    private fun toggle(title: String, desc: String, checked: Boolean, onChange: (Boolean) -> Unit): LinearLayout {
+        val row = LinearLayout(this)
+        row.orientation = LinearLayout.HORIZONTAL
+        row.gravity = Gravity.CENTER_VERTICAL
+        row.layoutParams = LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(12f) }
+
+        val texts = LinearLayout(this)
+        texts.orientation = LinearLayout.VERTICAL
+        texts.layoutParams = LinearLayout.LayoutParams(0, wrap, 1f).apply { marginEnd = dp(12f) }
+        texts.addView(tv(title, 14f, Palette.TEXT, fonts.poppins))
+        texts.addView(tv(desc, 12f, Palette.DIM, fonts.poppins))
+
+        val sw = Switch(this)
+        sw.isChecked = checked
+        sw.thumbTintList = ColorStateList.valueOf(Palette.CYAN)
+        sw.trackTintList = ColorStateList.valueOf(Palette.LINE)
+        sw.setOnCheckedChangeListener { _, v -> onChange(v) }
+
+        row.addView(texts)
+        row.addView(sw)
+        return row
     }
 
     private fun slider(
@@ -119,6 +143,7 @@ class MainActivity : Activity() {
         preview = ClockCardView(this)
         preview.applyScale(prefs.getFloat("size", 13f) / 13f)
         preview.alpha = prefs.getFloat("alpha", 0.7f)
+        preview.setOptions(prefs.getBoolean("showEvents", true), prefs.getBoolean("showShards", true))
 
         val stage = FrameLayout(this)
         stage.background = GradientDrawable(
@@ -181,6 +206,21 @@ class MainActivity : Activity() {
             layoutParams = LinearLayout.LayoutParams(wrap, wrap).apply { topMargin = dp(14f) }
         })
         content.addView(look)
+
+        // ---- o que mostrar (juntos ou separados)
+        val show = card()
+        show.addView(tv("O que mostrar", 16f, Palette.TEXT, fonts.poppinsMedium))
+        show.addView(toggle("Horários dos eventos", "Geyser e Vovó (contagem e barra)",
+            prefs.getBoolean("showEvents", true)) { v ->
+            prefs.edit().putBoolean("showEvents", v).apply()
+            preview.setOptions(v, prefs.getBoolean("showShards", true))
+        })
+        show.addView(toggle("Alerta de fragmento", "Imagem e local por 1 minuto",
+            prefs.getBoolean("showShards", true)) { v ->
+            prefs.edit().putBoolean("showShards", v).apply()
+            preview.setOptions(prefs.getBoolean("showEvents", true), v)
+        })
+        content.addView(show)
 
         // ---- alerta de fragmento
         val shard = card()
