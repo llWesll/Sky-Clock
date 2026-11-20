@@ -215,7 +215,7 @@ class MainActivity : Activity() {
             prefs.edit().putBoolean("showEvents", v).apply()
             preview.setOptions(v, Options.shards(prefs))
         })
-        show.addView(toggle("Alerta de fragmento", "Imagem e local por 1 minuto",
+        show.addView(toggle("Alerta de fragmento", "Imagem e local enquanto ele rola",
             Options.shards(prefs)) { v ->
             prefs.edit().putBoolean("showShards", v).apply()
             preview.setOptions(Options.events(prefs), v)
@@ -226,7 +226,7 @@ class MainActivity : Activity() {
         val shard = card()
         shard.addView(tv("Alerta de fragmento", 16f, Palette.TEXT, fonts.poppinsMedium))
         shard.addView(tv(
-            "Nos dias com fragmento, a imagem dele (preto ou vermelho) e o nome do local aparecem no relógio por 1 minuto quando ele começa.",
+            "Nos dias com fragmento, a imagem dele (preto ou vermelho) e o nome do local aparecem no relógio durante todo o período dele, do começo até pousar.",
             13f, Palette.DIM, fonts.poppins
         ).apply { layoutParams = LinearLayout.LayoutParams(wrap, wrap).apply { topMargin = dp(6f) } })
         shard.addView(pillButton("Testar fragmento vermelho", fonts, false) {

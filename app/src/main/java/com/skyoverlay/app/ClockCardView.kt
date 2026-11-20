@@ -20,11 +20,14 @@ import java.time.format.DateTimeFormatter
 class BarView(ctx: Context) : View(ctx) {
     var fraction: Float = 0f
         set(v) {
-            field = v.coerceIn(0f, 1f)
+            val n = v.coerceIn(0f, 1f)
+            if (n == field) return
+            field = n
             invalidate()
         }
     var barColor: Int = Palette.CYAN
         set(v) {
+            if (v == field) return
             field = v
             invalidate()
         }
@@ -66,6 +69,16 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
     private val alertTv = TextView(ctx)
     private var alertKind: ShardKind? = null
     private var scale = -1f
+    private var lastActive: Boolean? = null   // so mexe em cores/rotulo quando o estado do evento muda
+
+    private companion object {
+        const val PREVIEW_SEC = 60L   // o teste de fragmento da previa dura 1 minuto
+    }
+
+    /** Evita refazer o layout da janela por texto igual (o overlay inteiro e redesenhado a cada mudanca). */
+    private fun TextView.setIfChanged(t: String) {
+        if (text.toString() != t) text = t
+    }
 
     /** Usado so na previa do app para testar o alerta; some sozinho quando o tempo acaba. */
     var forcedAlert: Shards.Alert? = null
@@ -74,7 +87,7 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
     private var startupAlert: Shards.Alert? = null
     private var startupUntil: ZonedDateTime? = null
 
-    /** Chamado uma vez quando o overlay inicia: mostra o aviso por ate 1 minuto, sem passar do pouso. */
+    /** Chamado uma vez quando o overlay inicia: se um fragmento ja esta rolando, avisa ate ele pousar. */
     fun showOngoingShardOnStart() {
         val now = ZonedDateTime.now(Events.SKY_ZONE)
         val a = Shards.ongoing(now) ?: return
@@ -196,11 +209,11 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
         sub.layoutParams = LinearLayout.LayoutParams(wrap, wrap).apply { topMargin = d(2f * s) }
     }
 
-    /** Faixa com a imagem do fragmento (preto ou vermelho) + nome do local, por no maximo 1 minuto. */
+    /** Faixa com a imagem do fragmento (preto ou vermelho) + nome do local, durante todo o periodo dele. */
     private fun updateAlert(): Boolean {
         val now = ZonedDateTime.now(Events.SKY_ZONE)
         val forced = forcedAlert
-        if (forced != null && forced.elapsedSec(now) >= Shards.ALERT_SEC) forcedAlert = null
+        if (forced != null && forced.elapsedSec(now) >= PREVIEW_SEC) forcedAlert = null
         // o teste da previa aparece mesmo com o alerta desligado
         val until = startupUntil
         if (startupAlert != null && (until == null || !now.isBefore(until))) startupAlert = null
@@ -225,7 +238,7 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
                 }
             }
         }
-        alertTv.text = a.place.ifEmpty { a.kind.label }
+        alertTv.setIfChanged(a.place.ifEmpty { a.kind.label })
         alertBox.visibility = View.VISIBLE
         // sem a area de eventos embaixo, nao precisa de espaco depois da faixa
         (alertBox.layoutParams as? LinearLayout.LayoutParams)?.bottomMargin = if (showEvents) d(10f * scale) else 0
@@ -238,23 +251,26 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
         bar.visibility = if (showEvents) View.VISIBLE else View.GONE
         // nada para mostrar: o card some e a janela encolhe (nao bloqueia toques no jogo)
         visibility = if (showEvents || alertShown) View.VISIBLE else View.GONE
+        if (!showEvents) return   // sem a area de eventos: nada para atualizar
+
         val p = Events.pick()
         val st = p.state
-        val accent = if (st.active) Palette.GOLD else Palette.CYAN
-
-        label.text = if (st.active) "AGORA" else "PRÓXIMO"
-        label.setTextColor(accent)
-        (dot.background as GradientDrawable).setColor(accent)
-        name.text = p.event.name
-
-        time.text = clock(st.seconds)
-        time.setTextColor(if (st.active) Palette.GOLD else Palette.TEXT)
+        if (lastActive != st.active) {
+            lastActive = st.active
+            val accent = if (st.active) Palette.GOLD else Palette.CYAN
+            label.text = if (st.active) "AGORA" else "PRÓXIMO"
+            label.setTextColor(accent)
+            (dot.background as GradientDrawable).setColor(accent)
+            time.setTextColor(if (st.active) Palette.GOLD else Palette.TEXT)
+            bar.barColor = accent
+        }
+        name.setIfChanged(p.event.name)
+        time.setIfChanged(clock(st.seconds))
 
         val total = if (st.active) p.event.durationMin * 60f else 7200f
-        bar.barColor = accent
         bar.fraction = 1f - st.seconds / total
 
         val local = st.start.withZoneSameInstant(ZoneId.systemDefault()).format(fmt)
-        sub.text = if (st.active) "começou às $local" else "começa às $local"
+        sub.setIfChanged(if (st.active) "começou às $local" else "começa às $local")
     }
 }

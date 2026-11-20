@@ -30,8 +30,8 @@ object Shards {
     /** O fragmento aparece no portal e "pousa" 8min40s depois; o alerta dura esse tempo. */
     const val LAND_SEC = 8 * 60 + 40L
 
-    /** O alerta no relogio aparece so por este tempo (1 minuto) a partir do inicio do fragmento. */
-    const val ALERT_SEC = 60L
+    /** O alerta fica no relogio o periodo inteiro do fragmento, do inicio ate ele pousar. */
+    const val ALERT_SEC = LAND_SEC
 
     /** O reino muda a cada dia do mes, nesta ordem, recomecando no dia 1 (e de novo apos o 5). */
     val REALMS = listOf("Campina", "Floresta", "Vale", "Sertão", "Relicário")
@@ -85,7 +85,7 @@ object Shards {
         return Alert(day.kind, start, day.places[realmIdx])
     }
 
-    /** Alerta ativo agora (so no 1o minuto depois que o fragmento aparece), ou null. */
+    /** Alerta ativo agora (do inicio do fragmento ate ele pousar), ou null. */
     fun alert(now: ZonedDateTime = ZonedDateTime.now(Events.SKY_ZONE)): Alert? {
         val date = now.withZoneSameInstant(Events.SKY_ZONE).toLocalDate()
         val day = forDate(date) ?: return null
