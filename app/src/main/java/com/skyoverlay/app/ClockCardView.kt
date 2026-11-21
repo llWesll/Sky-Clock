@@ -73,6 +73,7 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
 
     private companion object {
         const val PREVIEW_SEC = 60L   // o teste de fragmento da previa dura 1 minuto
+        const val STARTUP_SEC = 60L   // aviso ao iniciar quando o fragmento ja esta no chao
     }
 
     /** Evita refazer o layout da janela por texto igual (o overlay inteiro e redesenhado a cada mudanca). */
@@ -87,12 +88,16 @@ class ClockCardView(ctx: Context) : LinearLayout(ctx) {
     private var startupAlert: Shards.Alert? = null
     private var startupUntil: ZonedDateTime? = null
 
-    /** Chamado uma vez quando o overlay inicia: se um fragmento ja esta rolando, avisa ate ele pousar. */
+    /**
+     * Chamado uma vez quando o overlay inicia. Se um fragmento esta ativo agora, avisa:
+     * ainda caindo -> ate ele pousar; ja no chao -> por STARTUP_SEC.
+     */
     fun showOngoingShardOnStart() {
         val now = ZonedDateTime.now(Events.SKY_ZONE)
         val a = Shards.ongoing(now) ?: return
+        val toLand = a.secondsToLand(now)
         startupAlert = a
-        startupUntil = now.plusSeconds(minOf(Shards.ALERT_SEC, a.secondsToLand(now)))
+        startupUntil = now.plusSeconds(if (toLand > 0) toLand else STARTUP_SEC)
     }
 
     /** Opcoes de exibicao (podem ficar ligadas juntas ou separadas). */

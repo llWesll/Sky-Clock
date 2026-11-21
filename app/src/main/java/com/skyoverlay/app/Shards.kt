@@ -30,6 +30,9 @@ object Shards {
     /** O fragmento aparece no portal e "pousa" 8min40s depois; o alerta dura esse tempo. */
     const val LAND_SEC = 8 * 60 + 40L
 
+    /** Duracao total da erupcao no jogo (regra da comunidade: ~4h depois que aparece no portal). */
+    const val END_SEC = 4 * 3600L
+
     /** O alerta fica no relogio o periodo inteiro do fragmento, do inicio ate ele pousar. */
     const val ALERT_SEC = LAND_SEC
 
@@ -74,13 +77,13 @@ object Shards {
             Duration.between(start, now).seconds
     }
 
-    /** Fragmento que esta rolando agora (comecou e ainda nao pousou, ate 8min40s), ou null. */
+    /** Fragmento ativo agora: caindo (ate 8min40s) ou ja no chao ate o fim da erupcao (~4h), ou null. */
     fun ongoing(now: ZonedDateTime = ZonedDateTime.now(Events.SKY_ZONE)): Alert? {
         val date = now.withZoneSameInstant(Events.SKY_ZONE).toLocalDate()
         val day = forDate(date) ?: return null
         val realmIdx = (date.dayOfMonth - 1) % REALMS.size
         val start = starts(date).firstOrNull {
-            !now.isBefore(it) && now.isBefore(it.plusSeconds(LAND_SEC))
+            !now.isBefore(it) && now.isBefore(it.plusSeconds(END_SEC))
         } ?: return null
         return Alert(day.kind, start, day.places[realmIdx])
     }
